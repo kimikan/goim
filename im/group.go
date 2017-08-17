@@ -1,20 +1,17 @@
 package im
 
-import (
-	"bytes"
-	"strings"
+import "bytes"
 
-	"github.com/google/uuid"
-)
 
 type Group struct {
-	ID   uuid.UUID
-	Name string
+	//represent a uuid
+	Name [16]byte
 
 	//for privilege approve etc
 	Owner *User
 
 	Users []*User
+	Messages chan *Message
 }
 
 //deserialize the buf to struct
@@ -22,49 +19,32 @@ func ParseGroup(store Store, bs []byte) (*Group, error) {
 	p := NewGroup("", nil)
 	buf := bytes.NewBuffer(bs)
 
-	tmp := [16]byte{}
-	len, err := buf.Read(tmp[:])
+	len, err := buf.Read(p.Name[:])
 	if len != 16 || err != nil {
 		return nil, err
 	}
-	err = p.ID.UnmarshalBinary(tmp[:])
-	if err != nil {
-		return nil, err
-	}
 
-	p.Name, err = buf.ReadString('\n')
-	if err != nil {
-		return nil, err
-	}
-	p.Name = strings.TrimRight(p.Name, "\n")
-	//fmt.Println([]byte(p.Name))
+	tmp := [16]byte{}
 	len, err = buf.Read(tmp[:])
 	if len != 16 || err != nil {
 		return nil, err
 	}
-	uid := uuid.UUID{}
-	err = uid.UnmarshalBinary(tmp[:])
-	if err != nil {
-		return nil, err
-	}
-	p.Owner = store.GetUser(&uid)
+
+	p.Owner = store.GetUser(tmp[:])
 
 	for {
 		len, err = buf.Read(tmp[:])
 		if len != 16 || err != nil {
 			break
 		}
-		uid := uuid.UUID{}
-		err = uid.UnmarshalBinary(tmp[:])
-		if err != nil {
-			break
-		}
+		//Find specific user
 
-		user2 := store.GetUser(&uid)
+		user2 := store.GetUser(tmp[:])
 		if user2 != nil {
 			p.Users = append(p.Users, user2)
 		}
 	}
+	p.Messages = make(chan *Message)
 	return p, nil
 }
 
@@ -72,34 +52,22 @@ func ParseGroup(store Store, bs []byte) (*Group, error) {
 //func (p *Group) ToBytes() ([]byte, error) {
 func (p *Group) ToBytes() ([]byte, error) {
 	buf := bytes.Buffer{}
-	b, err := p.ID.MarshalBinary()
 
-	if err != nil {
-		return nil, err
-	}
 
-	buf.Write(b)
-	buf.WriteString(p.Name)
+	buf.Write(p.Name[:])
 	buf.WriteByte(byte('\n'))
-	b, err = p.Owner.ID.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-	buf.Write(b)
+
+	buf.Write(p.Owner.Name[:])
 
 	for _, user := range p.Users {
-		b, err = user.ID.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-		buf.Write(b)
+		buf.Write(user.Name[:])
 	}
 
 	return buf.Bytes(), nil
 }
 
 func (p *Group) HashKey() interface{} {
-	return p.ID
+	return p.Name
 }
 
 func (p *Group) AddUser(user *User) {
@@ -107,18 +75,17 @@ func (p *Group) AddUser(user *User) {
 }
 
 func NewGroup(name string, owner *User) *Group {
-	id, err := uuid.NewUUID()
 
-	if err != nil {
+	if len(name) > 16 {
 		return nil
 	}
 
 	p := &Group{
-		ID:    id,
-		Name:  name,
 		Owner: owner,
 		Users: []*User{},
 	}
+	copy(p.Name[:], []byte(name))
+	p.Messages = make(chan *Message)
 
 	return p
 }

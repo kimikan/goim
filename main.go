@@ -5,9 +5,13 @@ import (
 	"im/im"
 )
 
+func chat() {
+
+}
+
 func main() {
 
-	u := im.NewUser("kan", "nihao")
+	u := im.NewUser("kan", "xxxxx")
 
 	if u != nil {
 		bs, err := u.ToBytes()

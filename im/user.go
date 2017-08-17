@@ -3,16 +3,65 @@ package im
 import (
 	"bytes"
 	"strings"
-
-	"github.com/google/uuid"
+	"time"
 )
+
+/*
+ * Message details
+ * to share the data among
+ * different users & groups
+ */
+type Message struct {
+	Time    time.Time
+	Group   *Group
+	From    *User
+	Content string
+}
 
 //definition user
 type User struct {
-	ID          uuid.UUID
-	Name        string
+	Name        [16]byte
 	Password    string
 	Description string
+
+	Messages chan *Message
+}
+
+//start a discussion session
+//againest a user
+func (p *User) TalkToUser(user *User, msg string) {
+	message := &Message{
+		Time:    time.Now(),
+		Group:   nil,
+		From:    p,
+		Content: msg,
+	}
+
+	if user != nil {
+		user.Messages <- message
+	}
+}
+
+//submit a post in a group discusstion
+func (p *User) TalkInGroup(group *Group, msg string) {
+	message := &Message{
+		Time:    time.Now(),
+		Group:   group,
+		From:    p,
+		Content: msg,
+	}
+
+	if group != nil {
+		group.Messages <- message
+
+		if len(group.Messages) > 100 {
+			<-group.Messages
+		}
+
+		for _, user := range group.Users {
+			user.Messages <- message
+		}
+	}
 }
 
 //deserialize the buf to struct
@@ -20,21 +69,16 @@ func ParseUser(bs []byte) (*User, error) {
 	p := &User{}
 	buf := bytes.NewBuffer(bs)
 
-	tmp := [16]byte{}
-	len, err := buf.Read(tmp[:])
+	len, err := buf.Read(p.Name[:])
 	if len != 16 || err != nil {
 		return nil, err
 	}
-	err = p.ID.UnmarshalBinary(tmp[:])
-	if err != nil {
-		return nil, err
-	}
-
-	p.Name, err = buf.ReadString('\n')
-	if err != nil {
-		return nil, err
-	}
-	p.Name = strings.TrimRight(p.Name, "\n")
+	/*
+		p.Name, err = buf.ReadString('\n')
+		if err != nil {
+			return nil, err
+		}
+		p.Name = strings.TrimRight(p.Name, "\n") */
 	//fmt.Println([]byte(p.Name))
 
 	p.Password, err = buf.ReadString('\n')
@@ -47,6 +91,7 @@ func ParseUser(bs []byte) (*User, error) {
 		return nil, err
 	}
 	p.Description = strings.TrimRight(p.Description, "\n")
+	p.Messages = make(chan *Message)
 
 	return p, nil
 }
@@ -54,13 +99,8 @@ func ParseUser(bs []byte) (*User, error) {
 //serialize the struct to bytes
 func (p *User) ToBytes() ([]byte, error) {
 	buf := bytes.Buffer{}
-	b, err := p.ID.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
 
-	buf.Write(b)
-	buf.WriteString(p.Name)
+	buf.Write(p.Name[:])
 	buf.WriteByte(byte('\n'))
 	buf.WriteString(p.Password)
 	buf.WriteByte(byte('\n'))
@@ -72,7 +112,7 @@ func (p *User) ToBytes() ([]byte, error) {
 
 //implements the hash function
 func (p *User) HashKey() interface{} {
-	return p.ID
+	return p.Name[:]
 }
 
 func (p *User) SetDescription(strs string) {
@@ -80,18 +120,17 @@ func (p *User) SetDescription(strs string) {
 }
 
 func NewUser(name string, pass string) *User {
-	id, err := uuid.NewUUID()
 
-	if err != nil {
+	if len(name) > 16 {
 		return nil
 	}
 
 	p := &User{
-		ID:          id,
-		Name:        name,
 		Password:    pass,
 		Description: "",
 	}
+	copy(p.Name[:], []byte(name))
+	p.Messages = make(chan *Message)
 
 	return p
 }
