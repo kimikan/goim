@@ -2,15 +2,12 @@ package main
 
 import (
 	"fmt"
-	"im/im"
+	"goim/im"
+	"goim/server"
 	"net/http"
 )
 
-func chat() {
-
-}
-
-func main() {
+func maine() {
 	http.HandleFunc("/users", im.ViewUserList)
 	//http.HandleFunc("/users/view")
 	http.HandleFunc("/", im.ViewIndex)
@@ -18,18 +15,11 @@ func main() {
 	http.ListenAndServe(":9999", nil)
 }
 
-func main2() {
+func main() {
+	go server.StartTCPServer()
 
-	u := im.NewUser("kan", "xxxxx")
-
-	if u != nil {
-		bs, err := u.ToBytes()
-
-		if err == nil {
-			fmt.Println(bs)
-
-			fmt.Println(im.ParseUser(bs))
-		}
+	err := server.StartWebServer()
+	if err != nil {
+		fmt.Println(err)
 	}
-	fmt.Println("Service started")
 }
