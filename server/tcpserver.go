@@ -2,7 +2,7 @@ package server
 
 import (
 	"fmt"
-	"log"
+	"goim/dispatcher"
 	"net"
 	"sync"
 	"time"
@@ -74,53 +74,26 @@ func (p *ConnectionManager) Run() error {
 }
 
 func (p *ConnectionManager) handleConnection(conn net.Conn) {
-	r := network.NewReader(conn, conn.RemoteAddr())
-	w := network.NewWriter(conn)
-	fmt.Println(r, "Connected")
+	//handle login mechanism
+	err := dispatcher.HandleLogin(conn)
+	if err != nil {
+		fmt.Println("login failed!")
+		return
+	}
 
 	for {
-		msg := r.ReadMsg()
-		if msg == nil {
-			fmt.Println(r, "Connect break!")
+		t, buf, e := ReadMessage(conn)
+		if e != nil {
+			fmt.Println(e)
 			break
 		}
-		switch realMsg := msg.(type) {
-		case *network.KeepAliveMsg:
-			if realMsg.Header.Type == network.PacketTypeKeepAlive {
-				realMsg.Header.Type = network.PacketTypeKeepAliveAck
-				if !w.WriteMsg(realMsg) {
-					log.Println("Keepalive ACK send failed!")
-				}
+		fmt.Println(t, buf)
+		/*
+			switch realMsg := msg.(type) {
+			default:
+				fmt.Println("Strange, should be here, Nil")
 			}
-			//should be ack only
-		case *network.ReadDiskMsg:
-			if realMsg.Header.Type == network.PacketTypeReadDisk {
-				mgr.AddIORequest(realMsg.DiskID, realMsg, w)
-			}
-
-		case *network.LoginMsg:
-			msg2 := new(network.LoginAckMsg)
-			msg2.Header = realMsg.Header
-			msg2.Header.Type = network.PacketTypeLoginAck
-			msg2.Header.Len = 0x29
-			msg2.DiskID = realMsg.DiskID
-			msg2.SnapshotID = 1
-			msg2.Flags = 0
-			msg2.SectorCount = util.GetSectorCount(realMsg.DiskID)
-			if !w.WriteMsg(msg2) {
-				fmt.Println("Error writing..LoginAckMsg.")
-			}
-		case *network.LogoutMsg:
-			if realMsg.Header.Type == network.PacketTypeLogout {
-				realMsg.Header.Type = network.PacketTypeLogoutAck
-				if !w.WriteMsg(realMsg) {
-					fmt.Println("Error writing...")
-				}
-			}
-
-		default:
-			fmt.Println("Strange, should be here, Nil")
-		}
+		*/
 	}
 }
 
