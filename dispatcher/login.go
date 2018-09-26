@@ -3,6 +3,7 @@ package dispatcher
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"goim/helpers"
 	"goim/im"
 	"math/rand"
@@ -48,7 +49,7 @@ func replyLogin2(conn net.Conn, key string, bys []byte) error {
 		return ex
 	}
 	n, err3 := helpers.WriteMessage(conn, im.MessageType_Login2, bs3)
-	if n != len(text) {
+	if n != len(bs3) {
 		return errors.New("write failed!")
 	}
 	return err3
@@ -88,5 +89,6 @@ func HandleLogin(conn net.Conn) error {
 	if bytes.Compare(m3.DecryptedText, bys) != 0 {
 		return errors.New("Wrong password!")
 	}
+	fmt.Println("Success")
 	return nil
 }

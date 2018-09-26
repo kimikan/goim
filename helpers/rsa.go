@@ -6,10 +6,10 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
-	"fmt"
 )
 
 //create encoding
+//returns private, public, err
 func NewRSAKey() (string, string, error) {
 	key, err := rsa.GenerateKey(rand.Reader, 1024)
 	if err != nil {
@@ -20,7 +20,7 @@ func NewRSAKey() (string, string, error) {
 		Bytes: derStream,
 	}
 	str := string(pem.EncodeToMemory(block))
-	fmt.Println(str)
+	//fmt.Println(str)
 
 	publicKey := &key.PublicKey
 	derPkix, err := x509.MarshalPKIXPublicKey(publicKey)
@@ -31,7 +31,7 @@ func NewRSAKey() (string, string, error) {
 		Bytes: derPkix,
 	}
 	str2 := string(pem.EncodeToMemory(block))
-	fmt.Println(str2)
+	//fmt.Println(str2)
 
 	return str, str2, nil
 }

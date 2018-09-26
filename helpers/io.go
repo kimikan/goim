@@ -3,14 +3,16 @@ package helpers
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
+	"strconv"
 )
 
 func getUint32(r io.Reader) (uint32, error) {
 	var buf [4]byte
 	n, err := r.Read(buf[:])
 	if n != 4 {
-		return 0, errors.New("invalid stream!")
+		return 0, errors.New("invalid stream! u32=" + strconv.Itoa(n))
 	}
 	if err != nil {
 		return 0, err
@@ -26,7 +28,7 @@ func getBytes(r io.Reader, num int) ([]byte, error) {
 	buf := make([]byte, num, num)
 	n, err := r.Read(buf)
 	if n != num {
-		return nil, errors.New("invalid stream")
+		return nil, errors.New(fmt.Sprint("invalid stream", num))
 	}
 	if err != nil {
 		return nil, err
@@ -52,6 +54,7 @@ func ReadMessage(r io.Reader) (uint32, []byte, error) {
 	if err2 != nil {
 		return 0, nil, err2
 	}
+	fmt.Println("read msg: ", t, buf)
 	return t, buf, nil
 }
 
@@ -60,7 +63,7 @@ func writeUint32(w io.Writer, v uint32) error {
 	binary.BigEndian.PutUint32(buf[:], v)
 	n, err := w.Write(buf[:])
 	if n != 4 {
-		return errors.New("invalid stream")
+		return errors.New("invalid stream, write u32")
 	}
 	return err
 }

@@ -1,8 +1,11 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"goim/dispatcher"
+	"goim/helpers"
+	"goim/im"
 	"net"
 	"sync"
 	"time"
@@ -62,8 +65,12 @@ func (p *ConnectionManager) Run() error {
 
 		go func() {
 			defer conn.Close()
-			p.handleConnection(conn)
-
+			fmt.Println("Ok, New user connected!")
+			err := p.handleConnection(conn)
+			if err != nil {
+				fmt.Println(err)
+			}
+			fmt.Println("Connection closed!")
 			p.Lock()
 			delete(p.conns, conn)
 			p.Unlock()
@@ -73,16 +80,19 @@ func (p *ConnectionManager) Run() error {
 	return nil
 }
 
-func (p *ConnectionManager) handleConnection(conn net.Conn) {
+func (p *ConnectionManager) handleConnection(conn net.Conn) error {
 	//handle login mechanism
 	err := dispatcher.HandleLogin(conn)
 	if err != nil {
-		fmt.Println("login failed!")
-		return
+		return errors.New("login failed, close connection!")
+	}
+	err = im.WriteInfoMessage(conn, "Welcome abord")
+	if err != nil {
+		return err
 	}
 
 	for {
-		t, buf, e := ReadMessage(conn)
+		t, buf, e := helpers.ReadMessage(conn)
 		if e != nil {
 			fmt.Println(e)
 			break
@@ -95,6 +105,8 @@ func (p *ConnectionManager) handleConnection(conn net.Conn) {
 			}
 		*/
 	}
+
+	return nil
 }
 
 //webserver entrence
