@@ -1,12 +1,9 @@
 package im
 
 import (
-	"bytes"
-	"encoding/gob"
 	"errors"
 	"goim/helpers"
 	"io"
-	"log"
 )
 
 const (
@@ -29,19 +26,6 @@ type LoginMsg1 struct {
 	PublicKey string
 }
 
-func UnMarshal(b []byte, msg interface{}) error {
-	var buf = bytes.Buffer{}
-	buf.Write(b)
-	// Create a decoder and receive a value.
-	dec := gob.NewDecoder(&buf)
-	err := dec.Decode(msg)
-	if err != nil {
-		log.Fatal("decode:", err)
-		return err
-	}
-	return nil
-}
-
 type LoginMsg2 struct {
 	MessageBase
 	//encrypted message with
@@ -56,24 +40,15 @@ type LoginMsg3 struct {
 	DecryptedText []byte
 }
 
-func Marshal(o interface{}) ([]byte, error) {
-	var buf bytes.Buffer
-	// Create an encoder and send a value.
-	enc := gob.NewEncoder(&buf)
-	err := enc.Encode(o)
-	if err != nil {
-		log.Fatal("encode:", err)
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
+//user....
+type User struct {
 }
 
 func WriteInfoMessage(w io.Writer, msg string) error {
 	m := &InfoMsg{
 		Text: msg,
 	}
-	bs, err := Marshal(m)
+	bs, err := helpers.Marshal(m)
 	if err != nil {
 		return err
 	}
@@ -97,7 +72,7 @@ func GetInfoMessage(r io.Reader) (*InfoMsg, error) {
 		return nil, errors.New("Wrong message sequence!")
 	}
 	var m1 InfoMsg
-	err := UnMarshal(buf, &m1)
+	err := helpers.UnMarshal(buf, &m1)
 	if err != nil {
 		return nil, err
 	}

@@ -1,136 +1,111 @@
 package im
 
 import (
-	"bytes"
+	"errors"
+	"goim/helpers"
+	"log"
 	"strings"
-	"time"
+
+	"github.com/boltdb/bolt"
 )
 
-/*
- * Message details
- * to share the data among
- * different users & groups
- */
-type Message struct {
-	Time    time.Time
-	Group   *Group
-	From    *User
-	Content string
+//add a transfer wrapper
+func KeyToUserID(key string) string {
+	md5 := helpers.MD5([]byte(key))
+	strs := strings.Split(key, "\n")
+	for _, str := range strs {
+		if strings.Contains(str, "--") {
+			continue
+		}
+		if len(str) > 0 {
+			md5 += string(str[0])
+		}
+	}
+	return md5
 }
 
-//definition user
-type User struct {
-	Name        [16]byte
-	Password    string
+const (
+	DbFile            = "im.db"
+	bucketUserProfile = "user_profile_table"
+)
+
+var dbContext *bolt.DB
+
+func OpenDB() *bolt.DB {
+	if dbContext == nil {
+		db, e := bolt.Open(DbFile, 0600, nil)
+		if e != nil {
+			log.Fatal(e)
+		}
+		dbContext = db
+	}
+	return dbContext
+}
+
+func CloseDB() {
+	if dbContext != nil {
+		dbContext.Close()
+		dbContext = nil
+	}
+}
+
+//UserID=>UserInfo
+//UserKey=>UserProfile
+type UserInfo struct {
+	//public key
+	Key         string
+	DisplayName string
 	Description string
-
-	Messages chan *Message
+	Avatar      []byte
 }
 
-//start a discussion session
-//againest a user
-func (p *User) TalkToUser(user *User, msg string) {
-	message := &Message{
-		Time:    time.Now(),
-		Group:   nil,
-		From:    p,
-		Content: msg,
-	}
-
-	if user != nil {
-		user.Messages <- message
-	}
+func GetUserInfoByPubKey(key string) (*UserInfo, error) {
+	id := KeyToUserID(key)
+	return GetUserInfoByID(id)
 }
 
-//submit a post in a group discusstion
-func (p *User) TalkInGroup(group *Group, msg string) {
-	message := &Message{
-		Time:    time.Now(),
-		Group:   group,
-		From:    p,
-		Content: msg,
-	}
-
-	if group != nil {
-		group.Messages <- message
-
-		if len(group.Messages) > 100 {
-			<-group.Messages
+func GetUserInfoByID(id string) (*UserInfo, error) {
+	var content []byte
+	OpenDB().View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(bucketUserProfile))
+		if b != nil {
+			content = b.Get([]byte(id))
 		}
-
-		for _, user := range group.Users {
-			user.Messages <- message
-		}
-	}
-}
-
-//deserialize the buf to struct
-func ParseUser(bs []byte) (*User, error) {
-	p := &User{}
-	buf := bytes.NewBuffer(bs)
-
-	len, err := buf.Read(p.Name[:])
-	if len != 16 || err != nil {
-		return nil, err
-	}
-	/*
-		p.Name, err = buf.ReadString('\n')
-		if err != nil {
-			return nil, err
-		}
-		p.Name = strings.TrimRight(p.Name, "\n") */
-	//fmt.Println([]byte(p.Name))
-
-	p.Password, err = buf.ReadString('\n')
-	if err != nil {
-		return nil, err
-	}
-	p.Password = strings.TrimRight(p.Password, "\n")
-	p.Description, err = buf.ReadString('\n')
-	if err != nil {
-		return nil, err
-	}
-	p.Description = strings.TrimRight(p.Description, "\n")
-	p.Messages = make(chan *Message)
-
-	return p, nil
-}
-
-//serialize the struct to bytes
-func (p *User) ToBytes() ([]byte, error) {
-	buf := bytes.Buffer{}
-
-	buf.Write(p.Name[:])
-	buf.WriteByte(byte('\n'))
-	buf.WriteString(p.Password)
-	buf.WriteByte(byte('\n'))
-	buf.WriteString(p.Description)
-	buf.WriteByte(byte('\n'))
-
-	return buf.Bytes(), nil
-}
-
-//implements the hash function
-func (p *User) HashKey() interface{} {
-	return p.Name[:]
-}
-
-func (p *User) SetDescription(strs string) {
-	p.Description = strs
-}
-
-func NewUser(name string, pass string) *User {
-
-	if len(name) > 16 {
 		return nil
+	})
+	if content != nil {
+		var user UserInfo
+		e := helpers.UnMarshal(content, &user)
+		if e != nil {
+			return nil, e
+		}
+		return &user, nil
 	}
+	return nil, errors.New("not exists")
+}
 
-	p := &User{
-		Password:    pass,
-		Description: "",
+func SetUserInfo(u *UserInfo) error {
+	if u == nil {
+		return errors.New("SetUserInfo: invalid parameter")
 	}
-	copy(p.Name[:], []byte(name))
-	p.Messages = make(chan *Message)
+	id := KeyToUserID(u.Key)
+	return SetUserInfoByID(id, u)
+}
 
-	return p
+//set userinfo by id, should.
+func SetUserInfoByID(id string, u *UserInfo) error {
+	if u == nil {
+		return errors.New("invalid user")
+	}
+	bs, err := helpers.Marshal(u)
+	if err != nil {
+		return err
+	}
+	return OpenDB().Update(func(tx *bolt.Tx) error {
+		b, e := tx.CreateBucketIfNotExists([]byte(bucketUserProfile))
+		if e != nil {
+			return e
+		}
+		return b.Put([]byte(id), bs)
+	})
 }
