@@ -97,6 +97,15 @@ func (p *ConnectionManager) handleConnection(conn net.Conn) error {
 			fmt.Println(e)
 			break
 		}
+		isMgr, e2 := dispatcher.HandleUserMgr(conn, t, buf)
+		if e2 != nil {
+			fmt.Println(e)
+			break
+		}
+		if isMgr {
+			continue
+		}
+
 		fmt.Println(t, buf)
 		/*
 			switch realMsg := msg.(type) {
