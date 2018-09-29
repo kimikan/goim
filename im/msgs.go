@@ -11,38 +11,20 @@ const (
 	MessageType_Login2
 	MessageType_Login3
 	MessageType_Info
+	MessageType_UserProfileRequest
+	MessageType_UserProfileResponse
+	MessageType_UpdateProfileRequest
+	MessageType_UpdateProfileResponse
+	MessageType_FriendRequest
+	MessageType_FriendResponse
+	MessageType_ApproveRequest
+	MessageType_ApproveResponse
+	MessageType_GetAllFriendRequest
+	MessageType_GetAllFriendRequestsResponse
+	MessageType_Talk
+	MessageType_GetCachedTextRequest
+	MessageType_GetCachedTextResponse
 )
-
-type MessageBase struct {
-	CheckSum uint32
-}
-
-type InfoMsg struct {
-	Text string
-}
-
-type LoginMsg1 struct {
-	MessageBase
-	PublicKey string
-}
-
-type LoginMsg2 struct {
-	MessageBase
-	//encrypted message with
-	//RSA public key
-	EncryptedText []byte
-}
-
-type LoginMsg3 struct {
-	MessageBase
-	//DecryptedText with private
-	//key
-	DecryptedText []byte
-}
-
-//user....
-type User struct {
-}
 
 func WriteInfoMessage(w io.Writer, msg string) error {
 	m := &InfoMsg{

@@ -54,7 +54,7 @@ func ReadMessage(r io.Reader) (uint32, []byte, error) {
 	if err2 != nil {
 		return 0, nil, err2
 	}
-	fmt.Println("read msg: ", t, buf)
+	//fmt.Println("read msg: ", t, buf)
 	return t, buf, nil
 }
 

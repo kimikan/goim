@@ -7,13 +7,15 @@ import (
 	"goim/im"
 	"net"
 	"testing"
+
+	"github.com/golang/protobuf/proto"
 )
 
 func writeLogin1(conn net.Conn, pub string) error {
 	m1 := im.LoginMsg1{
 		PublicKey: pub,
 	}
-	bs1, ex := im.Marshal(&m1)
+	bs1, ex := proto.Marshal(&m1)
 	if ex != nil {
 		return ex
 	}
@@ -32,7 +34,7 @@ func writeLogin3(conn net.Conn, private string, encryptedText []byte) error {
 	m3 := im.LoginMsg3{
 		DecryptedText: raw,
 	}
-	bs3, ex := im.Marshal(&m3)
+	bs3, ex := proto.Marshal(&m3)
 	if ex != nil {
 		return ex
 	}
@@ -53,7 +55,7 @@ func getLogin2(conn net.Conn) (*im.LoginMsg2, error) {
 		return nil, errors.New("Wrong message sequence!")
 	}
 	var m1 im.LoginMsg2
-	err := im.UnMarshal(buf, &m1)
+	err := proto.Unmarshal(buf, &m1)
 	if err != nil {
 		return nil, err
 	}
@@ -89,6 +91,7 @@ func Test_login(t *testing.T) {
 		t.Error(e3)
 		return
 	}
+
 	info, e4 := im.GetInfoMessage(conn)
 	if e4 != nil {
 		t.Error(e4)

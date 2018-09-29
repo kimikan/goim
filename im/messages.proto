@@ -35,17 +35,23 @@ message UserProfileRequestMsg {
 
 message UserProfileResponseMsg {
   Header header = 1;
-  string userID = 2;
-  string publicKey = 3;
-	string displayName = 4;
-	string discription = 5;
-	bytes avatar = 6;
+  enum Result {
+    Success = 0;
+    NoPermission = 1;
+    Unspecified = 2;
+  }
+  Result result = 2;
+  string userID = 3;
+  string publicKey = 4;
+	string displayName = 5;
+	string description = 6;
+	bytes avatar = 7;
 }
 
 message UpdateProfileRequestMsg {
   Header header = 1;
   string displayName = 2;
-  string discription = 3;
+  string description = 3;
   bytes avatar = 4;
 }
 
@@ -89,4 +95,62 @@ message ApproveResponseMsg {
     Unspecified = 3;
   }
   Result result = 2;
+}
+
+message GetAllRequestsMsg {
+  Header header = 1;
+}
+
+message Request {
+  string fromID = 1;
+  string helloMsg = 2;
+  bool isApproved = 3;
+  string time = 4;
+}
+
+message GetAllRequestsResponseMsg {
+  Header header = 1;
+  enum Result {
+    Success = 0;
+    Unspecified = 1;
+  }
+  Result result = 2;
+  repeated Request requests = 3;
+}
+
+message Text {
+  string content = 2;
+  string toUserId = 3;
+}
+
+message TextMsg {
+  Header header = 1;
+  Text text = 2;
+}
+
+//get cached messages
+message GetAllCachedMessagesRequest {
+  Header header = 1;
+}
+
+//get cached messages
+message GetAllCachedMessagesResponse {
+  Header header = 1;
+  enum Result {
+    Success = 0;
+    Unspecified = 1;
+  }
+  Result result = 2;
+  repeated Text texts = 3;
+}
+
+//something like, i'm editing
+//busy,, don't disturb etc
+//already read
+//msg success deliveried
+message ActionMsg {
+  Header header = 1;
+  //support self-define
+  int32 actionType = 2;
+  string description = 3;
 }
