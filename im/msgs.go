@@ -9,10 +9,11 @@ import (
 )
 
 const (
-	MessageType_Login1 = iota
-	MessageType_Login2
+	MessageType_Login1 = 1
+	MessageType_Login2 = iota
 	MessageType_Login3
 	MessageType_Info
+	MessageType_Heartbeat
 	MessageType_UserProfileRequest
 	MessageType_UserProfileResponse
 	MessageType_UpdateProfileRequest
@@ -45,6 +46,23 @@ func WriteToClientMessage(w io.Writer, msg proto.Message) error {
 	if l != len(bs) {
 		return errors.New("write failed")
 	}
+	return nil
+}
+
+func WriteHeartbeatMessage(w io.Writer) error {
+	m := &HeartbeatMsg{}
+	bs, err := proto.Marshal(m)
+	if err != nil {
+		return err
+	}
+	l, err2 := helpers.WriteMessage(w, MessageType_Heartbeat, bs)
+	if err2 != nil {
+		return err2
+	}
+	if l != len(bs) {
+		return errors.New("write failed!")
+	}
+
 	return nil
 }
 

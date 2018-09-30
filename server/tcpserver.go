@@ -20,12 +20,14 @@ type ConnectionManager struct {
 	//proper closed before process quit
 	barrier    sync.WaitGroup
 	messageBus helpers.MessageBus
+	stopChan   chan int
 }
 
 func NewConnectionManager() *ConnectionManager {
 	return &ConnectionManager{
 		conns:      make(map[net.Conn]bool),
 		messageBus: helpers.NewMessageBus(runtime.NumCPU()),
+		stopChan:   make(chan int, 1),
 	}
 }
 
@@ -48,6 +50,24 @@ func (p *ConnectionManager) Run() error {
 		return e
 	}
 	defer l.Close()
+
+	go func() {
+		for {
+			select {
+			case <-time.After(time.Second * 20):
+				p.RLock()
+				for c, _ := range p.conns {
+					if c != nil {
+						im.WriteHeartbeatMessage(c)
+					}
+				}
+				p.RUnlock()
+			case <-p.stopChan:
+				break
+			}
+		}
+	}()
+
 	for {
 		conn, err := l.Accept()
 

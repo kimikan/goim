@@ -7,6 +7,10 @@ message Header {
   uint32 checkSum = 1;
 }
 
+message HeartbeatMsg{
+  Header header = 1;
+}
+
 message InfoMsg {
   Header header = 1;
   string text = 2;
@@ -134,7 +138,9 @@ message TextMsgResponse {
   Header header = 1;
   enum Result {
     Success = 0;
-    Unspecified = 1;
+    UserNotExists = 1;
+    NotFriend = 2;
+    Unspecified = 3;
   }
   Result result = 2;  
 }

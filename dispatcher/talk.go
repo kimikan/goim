@@ -15,6 +15,20 @@ func DispatchTextMsg(bus helpers.MessageBus, conn net.Conn, m *im.Text, userid s
 	if bus == nil || conn == nil || m == nil {
 		return errors.New("invalid parameters")
 	}
+	info, err := im.GetUserInfoByID(m.UserId)
+	if err != nil {
+		response := &im.TextMsgResponse{
+			Result: im.TextMsgResponse_UserNotExists,
+		}
+		return writeMessage(conn, im.MessageType_TalkResponse, response)
+	}
+	_, err2 := info.GetContactByID(userid)
+	if err2 != nil {
+		response := &im.TextMsgResponse{
+			Result: im.TextMsgResponse_NotFriend,
+		}
+		return writeMessage(conn, im.MessageType_TalkResponse, response)
+	}
 	//if has handle, means, it's online, just forward
 	if bus.HasHandle(m.UserId) {
 		bus.Publish(m.UserId, &NotificationText{
@@ -26,7 +40,7 @@ func DispatchTextMsg(bus helpers.MessageBus, conn net.Conn, m *im.Text, userid s
 	}
 
 	//otherwise fucking saving in the cache
-	err := db.AddMessage(m.UserId, &db.TextItem{})
+	err = db.AddMessage(m.UserId, &db.TextItem{})
 	if err != nil {
 		response := &im.TextMsgResponse{
 			Result: im.TextMsgResponse_Unspecified,
