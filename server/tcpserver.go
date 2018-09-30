@@ -3,10 +3,12 @@ package server
 import (
 	"errors"
 	"fmt"
+	"goim/db"
 	"goim/dispatcher"
 	"goim/helpers"
 	"goim/im"
 	"net"
+	"runtime"
 	"sync"
 	"time"
 )
@@ -16,12 +18,14 @@ type ConnectionManager struct {
 	conns map[net.Conn]bool
 	//to ensure all of the connections was
 	//proper closed before process quit
-	barrier sync.WaitGroup
+	barrier    sync.WaitGroup
+	messageBus helpers.MessageBus
 }
 
 func NewConnectionManager() *ConnectionManager {
 	return &ConnectionManager{
-		conns: make(map[net.Conn]bool),
+		conns:      make(map[net.Conn]bool),
+		messageBus: helpers.NewMessageBus(runtime.NumCPU()),
 	}
 }
 
@@ -65,6 +69,7 @@ func (p *ConnectionManager) Run() error {
 
 		go func() {
 			defer conn.Close()
+
 			fmt.Println("Ok, New user connected!")
 			err := p.handleConnection(conn)
 			if err != nil {
@@ -82,7 +87,7 @@ func (p *ConnectionManager) Run() error {
 
 func (p *ConnectionManager) handleConnection(conn net.Conn) error {
 	//handle login mechanism
-	err := dispatcher.HandleLogin(conn)
+	userid, err := dispatcher.HandleLogin(conn)
 	if err != nil {
 		return errors.New("login failed, close connection!")
 	}
@@ -91,13 +96,61 @@ func (p *ConnectionManager) handleConnection(conn net.Conn) error {
 		return err
 	}
 
+	fn := func(userid string, msg interface{}) {
+		switch mx := msg.(type) {
+		case *dispatcher.NotificationApprove:
+			im.WriteToClientMessage(conn, &im.NotificationApproveMsg{
+				UserID: mx.ApprovedFriendID,
+			})
+		case *dispatcher.NotificationFriendRequest:
+			im.WriteToClientMessage(conn, &im.NotificationFriendRequestMsg{
+				HelloMsg: mx.HelloMsg,
+				UserID:   mx.FromUserID,
+			})
+		case *dispatcher.NotificationText:
+			im.WriteToClientMessage(conn, &im.TextMsg{
+				Text: &im.Text{
+					Content:  mx.Content,
+					UserId:   mx.FromUserID,
+					SendTime: mx.ArrivedTime.String(),
+				},
+			})
+		}
+	}
+	err = p.messageBus.Subscribe(userid, fn)
+	if err != nil {
+		return err
+	}
+	defer p.messageBus.Unsubscribe(userid, fn)
+	//delivery all of the cached messages
+	texts, err2 := db.GetAllMsgs(userid)
+	if err2 != nil {
+		return err2
+	}
+	for _, t := range texts {
+		ex := im.WriteToClientMessage(conn, &im.TextMsg{
+			Text: &im.Text{
+				Content:  t.Content,
+				UserId:   t.FromUserID,
+				SendTime: t.ModifiedTime.String(),
+			},
+		})
+		if ex != nil {
+			fmt.Println("Message not delived: ", t)
+		}
+	}
+	err3 := db.RemoveAllMsgs(userid)
+	if err3 != nil {
+		return err3
+	}
+
 	for {
 		t, buf, e := helpers.ReadMessage(conn)
 		if e != nil {
 			fmt.Println(e)
 			break
 		}
-		isMgr, e2 := dispatcher.HandleUserMgr(conn, t, buf)
+		isMgr, e2 := dispatcher.HandleUserMgr(p.messageBus, conn, t, buf, userid)
 		if e2 != nil {
 			fmt.Println(e)
 			break
@@ -105,14 +158,17 @@ func (p *ConnectionManager) handleConnection(conn net.Conn) error {
 		if isMgr {
 			continue
 		}
+		isMsg, e3 := dispatcher.HandleTalkMessage(p.messageBus, conn, t, buf, userid)
+		if e3 != nil {
+			fmt.Println(e3)
+			break
+		}
+		if isMsg {
+			continue
+		}
 
+		//others just print
 		fmt.Println(t, buf)
-		/*
-			switch realMsg := msg.(type) {
-			default:
-				fmt.Println("Strange, should be here, Nil")
-			}
-		*/
 	}
 
 	return nil

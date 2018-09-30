@@ -4,6 +4,8 @@ import (
 	"errors"
 	"goim/helpers"
 	"io"
+
+	"github.com/golang/protobuf/proto"
 )
 
 const (
@@ -22,15 +24,35 @@ const (
 	MessageType_GetAllFriendRequest
 	MessageType_GetAllFriendRequestsResponse
 	MessageType_Talk
+	MessageType_TalkResponse
 	MessageType_GetCachedTextRequest
 	MessageType_GetCachedTextResponse
+	MessageType_Notification
 )
+
+func WriteToClientMessage(w io.Writer, msg proto.Message) error {
+	if msg == nil {
+		return errors.New("invalid parameters")
+	}
+	bs, err := proto.Marshal(msg)
+	if err != nil {
+		return err
+	}
+	l, err2 := helpers.WriteMessage(w, MessageType_Notification, bs)
+	if err2 != nil {
+		return err2
+	}
+	if l != len(bs) {
+		return errors.New("write failed")
+	}
+	return nil
+}
 
 func WriteInfoMessage(w io.Writer, msg string) error {
 	m := &InfoMsg{
 		Text: msg,
 	}
-	bs, err := helpers.Marshal(m)
+	bs, err := proto.Marshal(m)
 	if err != nil {
 		return err
 	}
@@ -54,7 +76,7 @@ func GetInfoMessage(r io.Reader) (*InfoMsg, error) {
 		return nil, errors.New("Wrong message sequence!")
 	}
 	var m1 InfoMsg
-	err := helpers.UnMarshal(buf, &m1)
+	err := proto.Unmarshal(buf, &m1)
 	if err != nil {
 		return nil, err
 	}

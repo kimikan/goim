@@ -119,13 +119,24 @@ message GetAllRequestsResponseMsg {
 }
 
 message Text {
-  string content = 2;
-  string toUserId = 3;
+  string content = 1;
+  string userId = 2;
+  string SendTime = 3;
 }
 
 message TextMsg {
   Header header = 1;
   Text text = 2;
+}
+
+//get cached messages
+message TextMsgResponse {
+  Header header = 1;
+  enum Result {
+    Success = 0;
+    Unspecified = 1;
+  }
+  Result result = 2;  
 }
 
 //get cached messages
@@ -153,4 +164,15 @@ message ActionMsg {
   //support self-define
   int32 actionType = 2;
   string description = 3;
+}
+
+message NotificationFriendRequestMsg {
+  Header header = 1;
+  string userID = 2;
+  string helloMsg = 3;
+}
+
+message NotificationApproveMsg {
+  Header header = 1;
+  string userID = 2;
 }

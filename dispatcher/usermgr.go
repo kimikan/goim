@@ -88,7 +88,7 @@ func handleUpdateProfileRequest(conn net.Conn, buf []byte, userid string) error 
 //get from's info
 //if not exists, return not exists
 //info.setrequest(),  done
-func handleFriendRequest(conn net.Conn, buf []byte, userid string) error {
+func handleFriendRequest(bus helpers.MessageBus, conn net.Conn, buf []byte, userid string) error {
 	var m im.FriendRequestMsg
 	e := proto.Unmarshal(buf, &m)
 	if e != nil {
@@ -108,13 +108,17 @@ func handleFriendRequest(conn net.Conn, buf []byte, userid string) error {
 	response := &im.FriendResponseMsg{
 		Result: im.FriendResponseMsg_Success,
 	}
+	bus.Publish(userid, &NotificationFriendRequest{
+		FromUserID: m.FriendUserID,
+		HelloMsg:   m.HelloMsg,
+	})
 	return writeMessage(conn, im.MessageType_FriendResponse, response)
 }
 
 //update self's request's state
 //add new contact
 //if need to judge
-func handleApproveRequest(conn net.Conn, buf []byte, userid string) error {
+func handleApproveRequest(bus helpers.MessageBus, conn net.Conn, buf []byte, userid string) error {
 	var m im.ApproveRequestMsg
 	e := proto.Unmarshal(buf, &m)
 	if e != nil {
@@ -155,6 +159,9 @@ func handleApproveRequest(conn net.Conn, buf []byte, userid string) error {
 	response := &im.ApproveResponseMsg{
 		Result: im.ApproveResponseMsg_Success,
 	}
+	bus.Publish(m.FriendUserID, &NotificationApprove{
+		ApprovedFriendID: userid,
+	})
 	return writeMessage(conn, im.MessageType_ApproveResponse, response)
 }
 
@@ -196,9 +203,9 @@ func handleGetAllRequests(conn net.Conn, buf []byte, userid string) error {
 func HandleUserMgr(bus helpers.MessageBus, conn net.Conn, t uint32, buf []byte, userid string) (bool, error) {
 	switch t {
 	case im.MessageType_ApproveRequest:
-		return true, handleApproveRequest(conn, buf, userid)
+		return true, handleApproveRequest(bus, conn, buf, userid)
 	case im.MessageType_FriendRequest:
-		return true, handleFriendRequest(conn, buf, userid)
+		return true, handleFriendRequest(bus, conn, buf, userid)
 	case im.MessageType_UpdateProfileRequest:
 		return true, handleUpdateProfileRequest(conn, buf, userid)
 	case im.MessageType_UserProfileRequest:

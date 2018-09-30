@@ -11,6 +11,7 @@ type MessageBus interface {
 	Publish(topic string, args ...interface{})
 	Subscribe(topic string, fn interface{}) error
 	Unsubscribe(topic string, fn interface{}) error
+	HasHandle(topic string) bool
 }
 
 type handlersMap map[string][]reflect.Value
@@ -20,6 +21,19 @@ type messageBus struct {
 	mtx                sync.RWMutex
 	handlers           handlersMap
 	semaphore          chan reflect.Value
+}
+
+//if has handle means, no need to store into the cache
+func (b *messageBus) HasHandle(topic string) bool {
+	b.mtx.RLock()
+	defer b.mtx.RUnlock()
+	hs, ok := b.handlers[topic]
+	if ok {
+		if hs != nil && len(hs) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // Publish publishes arguments to the given topic subscribers
