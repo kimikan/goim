@@ -1,0 +1,184 @@
+syntax = "proto3"; 
+//protoc --go_out=. message.proto
+package im;
+
+message Header {
+  //address base58 encoded
+  uint32 checkSum = 1;
+}
+
+message HeartbeatMsg{
+  Header header = 1;
+}
+
+message InfoMsg {
+  Header header = 1;
+  string text = 2;
+}
+
+message LoginMsg1 {
+  Header header = 1;
+  string publicKey = 2;
+}
+
+message LoginMsg2 {
+  Header header = 1;
+  bytes encryptedText = 2;
+}
+
+//for test usage
+message LoginMsg3 {
+  Header header = 1;
+  bytes decryptedText = 2;
+}
+
+message UserProfileRequestMsg {
+  Header header = 1;
+  string userID = 2;
+}
+
+message UserProfileResponseMsg {
+  Header header = 1;
+  enum Result {
+    Success = 0;
+    NoPermission = 1;
+    Unspecified = 2;
+  }
+  Result result = 2;
+  string userID = 3;
+  string publicKey = 4;
+	string displayName = 5;
+	string description = 6;
+	bytes avatar = 7;
+}
+
+message UpdateProfileRequestMsg {
+  Header header = 1;
+  string displayName = 2;
+  string description = 3;
+  bytes avatar = 4;
+}
+
+message UpdateProfileResponseMsg {
+  Header header = 1;
+  enum Result {
+    Success = 0;
+    UserNotExists = 1;
+    Unspecified = 2;
+  }
+  Result result = 2;
+}
+
+message FriendRequestMsg {
+  Header header = 1;
+  string friendUserID = 2;
+  string helloMsg = 3;
+}
+
+message FriendResponseMsg {
+  Header header = 1;
+  enum Result {
+    Success = 0;
+    UserNotExists = 1;
+    Unspecified = 2;
+  }
+  Result result = 2;
+}
+
+message ApproveRequestMsg {
+  Header header = 1;
+  string friendUserID = 2;
+}
+
+message ApproveResponseMsg {
+  Header header = 1;
+  enum Result {
+    Success = 0;
+    RequestNotExists = 1;
+    AlreadyApproved = 2;
+    Unspecified = 3;
+  }
+  Result result = 2;
+}
+
+message GetAllRequestsMsg {
+  Header header = 1;
+}
+
+message Request {
+  string fromID = 1;
+  string helloMsg = 2;
+  bool isApproved = 3;
+  string time = 4;
+}
+
+message GetAllRequestsResponseMsg {
+  Header header = 1;
+  enum Result {
+    Success = 0;
+    Unspecified = 1;
+  }
+  Result result = 2;
+  repeated Request requests = 3;
+}
+
+message Text {
+  string content = 1;
+  string userId = 2;
+  string SendTime = 3;
+}
+
+message TextMsg {
+  Header header = 1;
+  Text text = 2;
+}
+
+//get cached messages
+message TextMsgResponse {
+  Header header = 1;
+  enum Result {
+    Success = 0;
+    UserNotExists = 1;
+    NotFriend = 2;
+    Unspecified = 3;
+  }
+  Result result = 2;  
+}
+
+//get cached messages
+message GetAllCachedMessagesRequest {
+  Header header = 1;
+}
+
+//get cached messages
+message GetAllCachedMessagesResponse {
+  Header header = 1;
+  enum Result {
+    Success = 0;
+    Unspecified = 1;
+  }
+  Result result = 2;
+  repeated Text texts = 3;
+}
+
+//something like, i'm editing
+//busy,, don't disturb etc
+//already read
+//msg success deliveried
+message ActionMsg {
+  Header header = 1;
+  //support self-define
+  int32 actionType = 2;
+  string description = 3;
+}
+
+message NotificationFriendRequestMsg {
+  Header header = 1;
+  string userID = 2;
+  string helloMsg = 3;
+}
+
+message NotificationApproveMsg {
+  Header header = 1;
+  string userID = 2;
+}

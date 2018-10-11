@@ -24,7 +24,8 @@ func KeyToUserID(key string) string {
 			md5 += string(str[0])
 		}
 	}
-	md5 += helpers.MD5([]byte(tmp))
+	hashValue := helpers.MD5([]byte(tmp))
+	md5 += helpers.Base64Encode(hashValue)
 	return md5
 }
 
